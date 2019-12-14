@@ -1,0 +1,50 @@
+{
+    "name": "testapp",
+    "version": "1.0.0",
+    "main": "./testapp.js",
+    "description": "test app for ilib-resources-webpack-loader",
+    "license": "Apache-2.0",
+    "keywords": [
+        "internationalization",
+        "i18n",
+        "localization",
+        "l10n",
+        "globalization",
+        "g11n",
+        "strings",
+        "resources",
+        "locale",
+        "translation",
+        "webpack",
+        "loader"
+    ],
+    "email": "ehoogerbeets@gmail.com",
+    "author": {
+        "name": "Edwin Hoogerbeets",
+        "web": "http://www.translationcircle.com/",
+        "email": "ehoogerbeets@gmail.com"
+    },
+    "contributors": [
+        {
+            "name": "Edwin Hoogerbeets",
+            "email": "ehoogerbeets@gmail.com"
+        }
+    ],
+    "files": [
+        "testapp.js"
+    ],
+    "directories": {
+        "docs": "./docs",
+        "test": "./test"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/iLib-js/ilib-resources-webpack-loader.git"
+    },
+    "engines": {
+        "node": ">=8.0"
+    },
+    "dependencies": {
+        "ilib-es6": "^14.4.0"
+    }
+}
