@@ -1,25 +1,7 @@
-# ilib-webpack-loader
+# ilib-resource-webpack-loader
 
-ilib-webpack-loader is a webpack loader for ilib so that you can use ilib in your
-own webpack project and
-only include the ilib classes and locale data that you actually need. Used in concert
-with ilib-webpack-plugin, it can also be used
-to create a custom version of ilib, even if you are not using webpack in your own
-project.
-
-In general, locale data is absolutely gargantuan. For ilib, the data is derived from the Unicode CLDR repository,
-which supports hundreds of locales. If all data for all locales were put together, it
-would form files that are tens, if not hundreds, of megabytes in size. That is typically not
-acceptable to put on a web page!
-
-The reality is that the majority of web sites only support a limited set of locales and
-use only need a limited set of international classes, and only need the locale data for those
-specific locales and classes.
-
-Fortunately, there is a solution. Webpack to the rescue! Webpack can analyze
-your own project and include only those ilib routines that are actually used (and their
-dependencies!) and, via the loader, it can grab only the locale data that those few
-classes need. This document tells you how to do all that.
+ilib-resource-webpack-loader is a webpack loader for translated resource files that
+allows your application to include those files within the webpacked application.
 
 # Table of Contents
 
@@ -40,11 +22,137 @@ classes need. This document tells you how to do all that.
    1. [Simple Example](#simple-example)
    1. [Example of a Customized Build](#example-of-a-customized-build)
 
+
+# The Translation Cycle for an Application
+
+To get a Javascript application translated, follow these steps:
+
+1. Make sure to add a dependency on ilib and a devDependency on 
+  ilib-resource-webpack-loader to the package.json file
+1. Import and instantiate an ilib `ResBundle` instance in each file
+  of the application that contains translatable strings, 
+  specifying the path where the translated resource files will go
+    - For react applications, add dependencies on ilib-es6 and
+      react-ilib, and then make sure the top level app is wrapped
+      in a `LocaleDataProvider` component
+1. Make sure all user-visible strings in the application are wrapped
+  in a `ResBundle.getString()` or `ResBundle.getStringJS()` call
+    - For react applications, wrap the JSX strings in a
+      `Translate` component, and use the `getString` and `getStringJS`
+      methods for strings in the JS code
+1. Make sure the application includes a way for a user to change their
+  locale, either by adding a choice in the UI or by having an admin
+  change it for them.
+    - It is recommended that every user have their own locale
+      which is stored along with the user's information in the
+      backend
+1. Add loctool to the devDependencies in the package.json file and make
+  sure it is installed and that node_modules/.bin is in the path
+    - Follow the directions in the loctool README to create
+      a loctool project.json file for the application
+1. Run the loctool to extract all of the localizable strings into xliff
+  files
+1. Send the xliff files out for translation
+1. When the translated xliff files are returned, use the loctool again
+  to generate the translated resource files in the path that specified
+  in the second step above
+1. Add ilib-resource-webpack-loader in the webpack.config.js file with the
+  appropriate options (details below)
+1. Run webpack as normal, and it should find and include all of the
+  translated files that the loctool had just generated into the webpacked
+  application
+
+The translations should now be available so that when the user changes
+their locale, the translated strings should appear in the UI. 
+
+In step 6 above, the loctool will simulataneously generate an xliff file
+containing the new strings that the developers checked in since the last
+set of xliff files was generated and sent out for translation. This means
+that you can send those new xliff files out as the next translation batch,
+restarting the cycle over again. 
+
+# Configuration Details
+
+## webpack.config.js
+
+To add resources to an application, modify the rules section of the 
+application's webpack.config.js file to add configuration for
+the loader:
+
+```
+    module: {
+        rules: [{
+            test: /.js$/,
+            use: {
+                loader: 'ilib-resource-webpack-loader',
+                options: {
+                    locales: ["en-US", "de-DE", "ja-JP" ],
+                    mode: 'development',
+                    resourceDirs: [
+                        path.resolve('./assets/translations'),
+                        path.resolve('./src/components/res')
+                    ]
+                }
+            }
+        }]
+    },
+```
+
+Here are what the options mean:
+
+- locales - an array of BCP-47 style tags that specify the list of locales that
+  the application needs to support.
+- mode - 'development' vs. 'production'
+    - in 'development', files are included by not compressed
+    - in 'production' mode, files will be compressed/uglified
+- resourceDirs - an array of paths where resource files can be found
+    - an array allows for including resource files from
+      multiple parts of an applications which can be released
+      and localized separately
+    - paths may be absolute or relative. When relative, they
+      should be relative to the root of the applications.
+
+## project.json
+
+In the project.json file, choose the "custom" style of project and
+use the loctool plugins that make sense for the application.
+
+```
+{
+    "name": "My Web App",
+    "id": "mywebapp",
+    "projectType": "custom",
+    "sourceLocale": "en-US",
+    "resourceDirs": {
+        "jst": "./i18n",
+        "javascript": "./i18n"
+    },
+    "plugins": [
+        "html",
+        "javascript"
+    ],
+    "excludes": [
+        "./.git",
+        "./assets",
+        "./bin",
+        "./libs",
+        "./script/**/*.sh"
+    ],
+    "includes: [
+        "**/*.html",
+        "**/*.js"
+    ],
+    settings: {
+        locales: ["es-ES", "de-DE", "fr-FR"],
+    }
+}
+```
+
 # Using the Loader and Plugin
 
-To use the loader and plugin, you need to do a few things:
+To use the loader, you need to do a few things:
 
-- Use npm to install the latest ilib, ilib-webpack-loader, and ilib-webpack-plugin locally
+- Use npm to install the latest ilib and ilib-resource-webpack-loader locally
 - Choose how you want to use ilib, as that determines the configuration options
 - Put ilib-webpack-loader and ilib-webpack-plugin into your webpack.config.js and give them
 the appropriate configuration options

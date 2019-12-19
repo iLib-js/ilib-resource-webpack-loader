@@ -1,5 +1,5 @@
 {
-    "name": "ilib-resources-webpack-loader",
+    "name": "ilib-resource-webpack-loader",
     "version": "1.0.0",
     "main": "./loader.js",
     "description": "A loader for webpack that knows how to load ilib resources data files.",
