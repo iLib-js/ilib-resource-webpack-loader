@@ -3,34 +3,15 @@
 ilib-resource-webpack-loader is a webpack loader for translated resource files that
 allows your application to include those files within the webpacked application.
 
-# Table of Contents
-
-1. [Using the Loader and Plugin](#using-the-loader-and-plugin)
-   1. [Configuration Choices](#configuration-choices)
-      1. [Which Locales?](#which-locales)
-      1. [Assembled, Dynamic Data, or Dynamic?](#assembled-dynamic-data-or-dynamic)
-      1. [Compressed or Not?](#compressed-or-not)
-   1. [What Do the Loader and Plugin Do?](#what-do-the-loader-and-plugin-do)
-   1. [Using the Loader and Plugin in Your Own Webpack Config](#using-the-loader-and-plugin-in-your-own-webpack-config)
-1. [How it Works](#how-it-works)
-   1. [Why so Many Locale Data Files?](#why-so-many-locale-data-files)
-   1. [Creating an Uncompressed Version of iLib](#creating-an-uncompressed-version-of-ilib)
-1. [What if my Website Project is not Currently Using Webpack?](#what-if-my-website-project-is-not-currently-using-webpack)
-   1. [Using Standard Builds](#using-standard-builds)
-   1. [Creating a Custom Version of iLib](#creating-a-custom-version-of-ilib)
-1. [Examples](#examples)
-   1. [Simple Example](#simple-example)
-   1. [Example of a Customized Build](#example-of-a-customized-build)
-
 
 # The Translation Cycle for an Application
 
 To get a Javascript application translated, follow these steps:
 
-1. Make sure to add a dependency on ilib and a devDependency on 
+1. Make sure to add a dependency on ilib and a devDependency on
   ilib-resource-webpack-loader to the package.json file
 1. Import and instantiate an ilib `ResBundle` instance in each file
-  of the application that contains translatable strings, 
+  of the application that contains translatable strings,
   specifying the path where the translated resource files will go
     - For react applications, add dependencies on ilib-es6 and
       react-ilib, and then make sure the top level app is wrapped
@@ -63,19 +44,19 @@ To get a Javascript application translated, follow these steps:
   application
 
 The translations should now be available so that when the user changes
-their locale, the translated strings should appear in the UI. 
+their locale, the translated strings should appear in the UI.
 
 In step 6 above, the loctool will simulataneously generate an xliff file
 containing the new strings that the developers checked in since the last
 set of xliff files was generated and sent out for translation. This means
 that you can send those new xliff files out as the next translation batch,
-restarting the cycle over again. 
+restarting the cycle over again.
 
 # Configuration Details
 
 ## webpack.config.js
 
-To add resources to an application, modify the rules section of the 
+To add resources to an application, modify the rules section of the
 application's webpack.config.js file to add configuration for
 the loader:
 
@@ -103,7 +84,7 @@ Here are what the options mean:
 - locales - an array of BCP-47 style tags that specify the list of locales that
   the application needs to support.
 - mode - 'development' vs. 'production'
-    - in 'development', files are included by not compressed
+    - in 'development', files are included but not compressed
     - in 'production' mode, files will be compressed/uglified
 - resourceDirs - an array of paths where resource files can be found
     - an array allows for including resource files from
@@ -148,123 +129,111 @@ use the loctool plugins that make sense for the application.
 }
 ```
 
+In the `plugins` property, list all of the loctool plugins necessary
+for all of the file types in the project, and make sure the `resourceDirs`
+property contains the output resource directory for each file type. This
+should match the `resourceDirs` in the webpack.config.js file.
+
 # Using the Loader and Plugin
 
-To use the loader, you need to do a few things:
+Using the loader requires a few things:
 
 - Use npm to install the latest ilib and ilib-resource-webpack-loader locally
-- Choose how you want to use ilib, as that determines the configuration options
-- Put ilib-webpack-loader and ilib-webpack-plugin into your webpack.config.js and give them
+- Put ilib-resource-webpack-loader into the webpack.config.js as per above and give them
 the appropriate configuration options
-- Update your webpack configuration to put ilib into its own vendor bundle and give it
-the right path for your website
 - Make sure your code requires or imports ilib classes directly
-- Include a special ilib file that will be dynamically rewritten to require all the
-locale data your project needs
-
-Before we go into details about the above, you have to make a few choices. The
-following section gives details on what those choices are and some guidance on what
-to choose for your project.
 
 ## Configuration Choices
 
 To configure the loader, you will need to decide upon:
 
-- Which locales do you need?
-- Do you want to assemble the locale data directly into the ilib bundle, or do
-you want to dynamically lazy-load them?
-- Do you want the code and data compressed/uglified or not?
+- Which locales does the application need?
+- Do you want to assemble the translation data directly into the the app's webpack
+bundle, or should they be dynamically lazy-loaded?
+- Is the application being built for debug or production mode?
 
 ### Which Locales?
 
 The loader is configured by default to support the top 20 locales around the world in
-terms of Internet traffic. If you don't explicitly choose any locales, you will get the locale data
-for these top 20 locales. That is a very small subset of all the locales that iLib can
-support, but the locale data for those files is still pretty big.
+terms of Internet traffic. If no locales are explicitly chosen, the loader will default
+to the translations for these top 20 locales. That is a very small subset of all the locales
+that could be supported, yet the set of translated strings could still be potentially large.
 
-If your app does not support that many locales, you can get a significantly
-smaller footprint by specifying a smaller set of them in your webpack.config.js.
+When the loader is including translations, it first checks if any of the translated
+files are available in the resources directory for the given locales. If they are not
+there, it does not need to include them, of course.
+
+If the app does not support that many locales, it can have a significantly
+smaller footprint by specifying a smaller set of locales in the webpack.config.js.
 
 Locales should be specified using [BCP-47 locale tags](https://en.wikipedia.org/wiki/IETF_language_tag)
 (aka. IETF tags). This uses ISO 639 codes for languages, ISO 15924 codes for scripts,
 and ISO 3166 codes for regions, separated by dashes. eg. US English is "en-US" and
 Chinese for China written with the simplified script is "zh-Hans-CN".
 
-### Assembled, Dynamic Data, or Dynamic?
+### Assembled or Dynamic Translations?
 
-There are three major ways to include the code and locale data into your webpack configuration:
-assembled, dynamic data, and dynamic.
+There are two ways to include the translation data into the webpack configuration for an
+application: assembled and dynamic.
 
-1. Assembled. You can include the data along with the code into the ilib bundle as a
-   single file.
+1. Assembled. Translations are included into the app's webpack bundle.
 
    Advantages:
 
    - everything is loaded and cached at once
-   - all ilib classes are available for synchronous use as soon as the browser has
+   - all translations are available for synchronous use as soon as the browser has
      loaded the js file. No async calls, callbacks, or promises needed!
    - less files to move around and/or to check into your repo
 
    Disadvantages:
 
-   - that single file can get large if you have a lot of locales or classes (very large!)
-   - you would be loading all locales at once, even if you only use one locale at a time,
-     meaning extra network bandwidth and load time for data that the user isn't using
+   - that single file can get large if there are a lot of locales (very large!)
+   - the app would load all locales at once, even if you only use one locale at a time,
+     means extra network bandwidth and load time for data, as well as memory footprint
+     that the user isn't actually using
 
-   Assembled data is a good choice if you only support a few locales or if you only use
-   a few ilib classes. The first time a user hits your website, they download a
-   larger-than-needed ilib file, but then it is cached and everything after that is simple.
+   Assembled translations is a good choice if the app only supports a few locales. The first
+   time a user hits the website, they download a larger-than-needed webpack file, but then
+   it is cached and everything after that is relatively simple.
 
-2. Dynamic Data. Webpack has the ability to lazy-load bundles as they are needed. With
-   this type of configuration, the code is assembled into a single file, but the locale
-   data goes into separate webpack bundles, and webkit lazy-loads those bundles on the
+2. Dynamic. Webpack has the ability to lazy-load chunks as they are needed. With
+   this type of configuration, the code is assembled into a single file, but the translation
+   data goes into separate webpack chunks, and webpack lazy-loads those chunks on the
    fly as they are needed.
 
    Advantages:
 
    - file size and therefore initial page load time are minimized
-   - the ilib code bundle can be cached in the browser and doesn't change often
-   - the ilib locale data files can be cached separately, allowing you to add new locales
-     to your web site later if you like without affecting any existing cache for the code
-     or other locales
+   - the application code can be cached in the browser and doesn't change often even if
+     the translations do
+   - the translation files can be cached separately, allowing the app to add new locales
+     to the web site later without affecting any existing cache for the translations in
+     other locales
 
    Disadvantages:
 
-   - the number of locale bundle files can get unwieldy if you have a lot of locales
-   - since webpack loads the bundles asynchronously, you must use the ilib classes
-     asynchronously with callbacks or promises. Alternately, you must pre-initialize the
-     locale data asynchronously and then wait for the load to finish in a jquery
-     "document ready" kind of function before using the ilib classes synchronously
+   - the number of locale translation files can get unwieldy if the app has a lot of locales
+   - since webpack loads the bundles asynchronously, the app must use the ilib ResBundle class
+     asynchronously with callbacks or promises. Alternately, the app must pre-initialize the
+     translation data asynchronously and then wait for the load to finish in a jquery
+     "document ready" kind of callback function before using the translations synchronously
      after that.
 
-   Using dynamic data is a good choice if you have a lot of locales or use a lot of
-   different ilib classes.
+   Using dynamic data is a good choice if you have a lot of locales or have a lot of strings
+   to translate.
 
-3. Dynamic. This mode uses dynamically loaded code and dynamically loaded data. Only
-a few platforms, such as nodejs or rhino, support this mode. It is not available on
-web pages. In this mode, you require() classes you need, and the data will be loaded
-synchronously from disk.
 
-   Advantages:
 
-   - file size and therefore initial page load time are very small. Only load what you
-     need, when you need it.
-   - the locales that your app supports does not need to be preconfigured in any way.
-     You can load any combination of language, script, and region that you like.
-   - all classes can be used synchronously
 
-   Disadvantages:
 
-   - synchronous loading can block execution. Fortunately, individual locale data files
-     are very often small (less than one disk block), and they are cached after the first time
-     they are loaded, which minimizes these problems.
 
-Dynamic mode is the best choice for node or rhino apps, as the code and data can be loaded
-from an npm module dynamically.
 
-When coding in React, you can use what looks like dynamic mode when you import iLib classes
-using the normal ES6 conventions. The new webpack support will convert that into a sort
-of "dynamicdata" mode automatically when necessary.
+
+
+
+
+
+
 
 ### Compressed or Not?
 
