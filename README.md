@@ -11,16 +11,18 @@ To get a Javascript application translated, follow these steps:
 1. Make sure to add a dependency on ilib and a devDependency on
   ilib-resource-webpack-loader to the package.json file
 1. Import and instantiate an ilib `ResBundle` instance in each file
-  of the application that contains translatable strings,
-  specifying the path where the translated resource files will go
+  of the application that contains translatable strings specifying
+  the path where the translated resource files will go or pass a
+  `ResBundle` instance around with the string already loaded
     - For react applications, add dependencies on ilib-es6 and
       react-ilib, and then make sure the top level app is wrapped
-      in a `LocaleDataProvider` component
+      in a `LocaleDataProvider` component, so that the `rb` variable
+      can be injected to all localizable components
 1. Make sure all user-visible strings in the application are wrapped
   in a `ResBundle.getString()` or `ResBundle.getStringJS()` call
     - For react applications, wrap the JSX strings in a
-      `Translate` component, and use the `getString` and `getStringJS`
-      methods for strings in the JS code
+      `Translate` component, and use the `rb.getString()`
+      and `rb.getStringJS()` methods for strings in the JS code
 1. Make sure the application includes a way for a user to change their
   locale, either by adding a choice in the UI or by having an admin
   change it for them.
@@ -28,7 +30,8 @@ To get a Javascript application translated, follow these steps:
       which is stored along with the user's information in the
       backend
 1. Add loctool to the devDependencies in the package.json file and make
-  sure it is installed and that node_modules/.bin is in the path
+  sure it is installed and that node_modules/.bin is in the path (or you
+  can use npx to run it)
     - Follow the directions in the loctool README to create
       a loctool project.json file for the application
 1. Run the loctool to extract all of the localizable strings into xliff
@@ -36,7 +39,7 @@ To get a Javascript application translated, follow these steps:
 1. Send the xliff files out for translation
 1. When the translated xliff files are returned, use the loctool again
   to generate the translated resource files in the path that specified
-  in the second step above
+  in the second step above.
 1. Add ilib-resource-webpack-loader in the webpack.config.js file with the
   appropriate options (details below)
 1. Run webpack as normal, and it should find and include all of the
@@ -50,7 +53,38 @@ In step 6 above, the loctool will simulataneously generate an xliff file
 containing the new strings that the developers checked in since the last
 set of xliff files was generated and sent out for translation. This means
 that you can send those new xliff files out as the next translation batch,
-restarting the cycle over again.
+restarting the cycle over again. It is recommended that the application
+is translated on a regular basis. In some projects that have "continuous
+localization" as part of their process, the new strings are sent out
+as frequently as multiple times per week, ensuring that the translators
+get a constant stream of strings to translate, rather than a huge
+batch at the end of the project that of course has to be translated
+very quickly to make the project schedule work.
+
+The translated files can be checked in to the source code repo. If
+the application includes any file types that are localized by copy,
+then it is better to check in the xliff files to the repo and run
+the loctool with every build so that translated files are generated
+on the fly. The reason for this is that the translated files can
+be kept in sync with the source file. Some file
+types are localized by extracting strings into a resource file,
+which this loader handles, but some other types are localized by creating
+translated copies of the source files
+with the text in them replaced with translations. For example, HTML files are
+localized in this way. If someone changes something non-localizable in
+an HTML source file, such as Javascript code or CSS or HTML attributes,
+then there will be no new strings to translate and the translated HTML
+files can be generated from the source file without any new
+translation work. Running the loctool with each build will guarantee
+that the non-localizable bits of the translated files will be the
+same as the in the source file, even when no strings are changed.
+If the application does not have any
+file types that are localized by copy and only relies on
+resource files, then the translated resource files can be checked in
+without this type of problem. File types that are localized by
+copy include the following: HTML, XHTML, JSON, or any front-end templates
+such as JST, HAML, or JSP. Check with the documentation of the plugin
+for the file type to see how it is localized.
 
 # Configuration Details
 
