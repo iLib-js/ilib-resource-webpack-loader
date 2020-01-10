@@ -6,7 +6,8 @@ allows your application to include those files within the webpacked application.
 
 # The Translation Cycle for an Application
 
-To get a Javascript application translated, follow these steps:
+To get a React application translated, see the next section.
+To get a non-React Javascript application translated, follow these steps:
 
 1. Make sure to add a dependency on ilib and a devDependency on
   ilib-resource-webpack-loader to the package.json file
@@ -14,15 +15,8 @@ To get a Javascript application translated, follow these steps:
   of the application that contains translatable strings specifying
   the path where the translated resource files will go or pass a
   `ResBundle` instance around with the string already loaded
-    - For react applications, add dependencies on ilib-es6 and
-      react-ilib, and then make sure the top level app is wrapped
-      in a `LocaleDataProvider` component, so that the `rb` variable
-      can be injected to all localizable components
 1. Make sure all user-visible strings in the application are wrapped
   in a `ResBundle.getString()` or `ResBundle.getStringJS()` call
-    - For react applications, wrap the JSX strings in a
-      `Translate` component, and use the `rb.getString()`
-      and `rb.getStringJS()` methods for strings in the JS code
 1. Make sure the application includes a way for a user to change their
   locale, either by adding a choice in the UI or by having an admin
   change it for them.
@@ -33,12 +27,13 @@ To get a Javascript application translated, follow these steps:
   sure it is installed and that node_modules/.bin is in the path (or you
   can use npx to run it)
     - Follow the directions in the loctool README to create
-      a loctool project.json file for the application
+      a loctool project.json file for the application and commit it
+      to your repo
 1. Run the loctool to extract all of the localizable strings into xliff
   files
 1. Send the xliff files out for translation
 1. When the translated xliff files are returned, use the loctool again
-  to generate the translated resource files in the path that specified
+  to generate the translated json resource files in the path specified
   in the second step above.
 1. Add ilib-resource-webpack-loader in the webpack.config.js file with the
   appropriate options (details below)
@@ -61,30 +56,120 @@ get a constant stream of strings to translate, rather than a huge
 batch at the end of the project that of course has to be translated
 very quickly to make the project schedule work.
 
-The translated files can be checked in to the source code repo. If
-the application includes any file types that are localized by copy,
-then it is better to check in the xliff files to the repo and run
-the loctool with every build so that translated files are generated
-on the fly. The reason for this is that the translated files can
-be kept in sync with the source file. Some file
-types are localized by extracting strings into a resource file,
-which this loader handles, but some other types are localized by creating
-translated copies of the source files
-with the text in them replaced with translations. For example, HTML files are
-localized in this way. If someone changes something non-localizable in
-an HTML source file, such as Javascript code or CSS or HTML attributes,
-then there will be no new strings to translate and the translated HTML
-files can be generated from the source file without any new
-translation work. Running the loctool with each build will guarantee
+### Localization Process for React Applications
+
+The process for localizing React applications is essentially the same
+as above with the following tweaks:
+
+- In step 1 above, instead of adding dependencies on ilib directly, add
+  dependencies on ilib-es6 and react-ilib. ilib-es6 classes can be
+  included in ES6 code normally using regular `import` statements,
+  whereas ilib code is written in ES5 and must be
+  included using `require()`. Also, ilib-es6 uses promises to support
+  asychronous ilib calls instead of the callback functions that
+  regular ilib uses.
+- Make sure the top level app is wrapped in a `LocaleDataProvider`
+  component from react-ilib, which loads the ilib locale data and the
+  translated resources that this webpack plugin includes into the
+  webpack bundle.
+    - The `LocaleDataProvider` component loads the data
+      asynchronously and then renders the rest of the app when
+      it is loaded. In this way, the app does not appear in
+      English first and then re-rendered in another language.
+      The app is not rendered until all the translated strings
+      and locale data are finished loading and are ready
+      to display to the user.
+
+Example:
+
+```javascript
+// put this in your main index.js file
+import React from 'react';
+import ReactDOM from 'react-dom';
+import path from 'path';
+import App from './App'; // this is your main App code
+
+import { LocaleDataProvider } from 'react-ilib';
+
+ReactDOM.render(
+    <LocaleDataProvider
+        locale="de-DE"
+        translationsDir={[path.join(__dirname, "res")]}
+        bundleName="resources"
+        app={App}  // don't render the App until after the locale data is loaded!
+    />,
+    document.getElementById('root')
+);
+```
+
+- For any user-visible JSX strings, wrap them in a `Translate` component,
+  and use the `rb.getString()` and `rb.getStringJS()` methods for strings in
+  the JS code
+    - The loctool has plugins that know how to extract strings from jsx
+      and JavaScript code
+- For any component you write that needs translated strings, use the
+  `injectRb()` function to make sure that the translations are available
+  in the code. The `rb` variable is the resource bundle instance that the
+  `LocaleDataProvider` component creates for you when it has finished loading
+  the translated strings.
+
+Example:
+
+```javascript
+import { Translate, injectRb } from 'react-ilib';
+
+function App(rb) {
+    const string1 = rb.getString("Hello World 1!");
+    return (
+        <span>
+            {string1}
+        </span>
+        <span>
+            <Translate>Hello World 2!</Translate>
+        </span>
+    );
+}
+
+export default injectRb(App);
+```
+
+### Handling the Translated Files
+
+Some file types are localized by extracting strings into a resource
+file, which is the way that regular JavaScript
+code works. This webpack loader helps to include those resource files
+into your webpacked application. The translated resource files that 
+the loctool produces can be checked in to your source control system.
+
+Other file types are localized "by copy". That is, they are localized by
+creating translated copies of the source files
+with the text in them replaced with translations. Often, these
+are more structured file types such as front end templates or XML.
+
+For example, regular HTML files are often localized by copy.
+Now if an engineer changes a non-localizable part of an HTML source file,
+such as JavaScript code or CSS or HTML attributes, there is no
+need for a new translation. Yet, the translated HTML files will be out
+of sync with the original source files because the code does not
+match.
+
+The solution is to run the loctool with every build. Doing this will guarantee
 that the non-localizable bits of the translated files will be the
-same as the in the source file, even when no strings are changed.
-If the application does not have any
-file types that are localized by copy and only relies on
-resource files, then the translated resource files can be checked in
-without this type of problem. File types that are localized by
-copy include the following: HTML, XHTML, JSON, or any front-end templates
-such as JST, HAML, or JSP. Check with the documentation of the plugin
-for the file type to see how it is localized.
+same as the in the source file, even when no localizable strings
+are changed.
+
+The rule of thumb is this: if the application includes any file types
+that are localized by copy, it is better to commit the xliff files to the
+source control system
+and generate the translated files with every build instead of committing
+the translated resource files. If the application does not have any
+file types that are localized by copy, then commit the translated
+resource files.
+
+File types that are typically localized by
+copy include the following: HTML, XHTML, JSON, and any front-end templates
+such as JST, HAML, or JSP. Check with the documentation of the loctool plugin
+for the particular file type to see how it is localized.
 
 # Configuration Details
 
@@ -190,8 +275,9 @@ bundle, or should they be dynamically lazy-loaded?
 
 The loader is configured by default to support the top 20 locales around the world in
 terms of Internet traffic. If no locales are explicitly chosen, the loader will default
-to the translations for these top 20 locales. That is a very small subset of all the locales
-that could be supported, yet the set of translated strings could still be potentially large.
+to the translations for these top 20 locales if they exist. That is a very small subset
+of all the locales that could be supported, yet the set of translated strings could still
+be potentially large.
 
 When the loader is including translations, it first checks if any of the translated
 files are available in the resources directory for the given locales. If they are not
@@ -204,6 +290,11 @@ Locales should be specified using [BCP-47 locale tags](https://en.wikipedia.org/
 (aka. IETF tags). This uses ISO 639 codes for languages, ISO 15924 codes for scripts,
 and ISO 3166 codes for regions, separated by dashes. eg. US English is "en-US" and
 Chinese for China written with the simplified script is "zh-Hans-CN".
+
+
+
+
+
 
 ### Assembled or Dynamic Translations?
 
